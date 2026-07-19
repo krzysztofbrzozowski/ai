@@ -1,0 +1,1 @@
+1. How to know exact architecture of the network?
