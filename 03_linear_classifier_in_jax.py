@@ -22,3 +22,7 @@ grad_fn = jax.grad(compute_loss)
 
 input_var = jnp.array(3.0)
 grad_of_loss_wrt_input_var = grad_fn(input_var)
+
+# We can during computation get also the loss value and the gradient at the same time
+grad_fn = jax.value_and_grad(compute_loss)
+output, grad_of_loss_wrt_input_var = grad_fn(input_var)
