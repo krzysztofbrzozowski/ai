@@ -210,3 +210,41 @@ grad(loss_val, b) = 1 * 1 = 1
     Deep Learning with Python, Chapter 2.
   </em>
 </p>
+
+## Functions relation chain
+### Create model
+> Below you can find some sequence
+> Look at the comments in 01_manual_implementation_recognition_nerwork.py for more details
+```python
+    model = NaiveSequential(
+        [
+            NaiveDense(input_size=28 * 28, output_size=512, activation=ops.relu),
+            NaiveDense(input_size=512, output_size=10, activation=ops.softmax),
+        ]
+    )
+```
+-> see implementation of NaiveSequential and NaiveDense
+↓
+```python
+def fit(model, images, labels, epochs, batch_size=128):
+  ...
+  for batch_counter in range(batch_generator.num_batches):
+    loss = one_training_step(model, images_batch, labels_batch)
+↓
+```python
+one_training_step(model, images_batch, labels_batch):
+    with tf.GradientTape() as tape:
+        predictions = model(images_batch)
+        loss = ops.sparse_categorical_crossentropy(labels_batch, predictions)
+        average_loss = ops.mean(loss)
+    # 'tape' gradient calculation for backpropagation
+    gradients = tape.gradient(average_loss, model.weights)
+    update_weights(gradients, model.weights)
+```
+↓
+```python
+optimizer = optimizers.SGD(learning_rate=1e-3)
+
+def update_weights(gradients, weights):
+    optimizer.apply_gradients(zip(gradients, weights))
+```
