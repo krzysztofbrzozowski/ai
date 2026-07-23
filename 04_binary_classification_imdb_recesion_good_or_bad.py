@@ -126,5 +126,99 @@ model.compile(
     metrics=["accuracy"],
 )
 
+# --- START TRAINING AND VALIDATION DATA
+x_val = x_train[:10000]
+partial_x_train = x_train[10000:]
+y_val = y_train[:10000]
+partial_y_train = y_train[10000:]
+# --- END TRAINING AND VALIDATION DATA
+
+# --- START MODEL TRAINING
+# Note:
+# Validation data is used to evaluate the loss of the model with new data that has not been seen before
+# This allows to monitor if model is leaaring new rules or just memorizing the training data
+# You can split the data using e.g.
+# history = model.fit(
+#    x_train,
+#    y_train,
+#    epochs=20,
+#    batch_size=512,
+#    validation_split=0.2,
+#)
+# -> model will use 20% of the training data (x_train and y_train) as validation data 
+
+history = model.fit(
+    partial_x_train,
+    partial_y_train,
+    epochs=20,
+    batch_size=512,
+    validation_data=(x_val, y_val),
+)
+# --- END MODEL TRAINING
+
+'''
+>>> history_dict = history.history
+>>> history_dict.keys()
+dict_keys(["accuracy", "loss", "val_accuracy", "val_loss"])
+'''
+
+# --- START MODEL EVALUATION
+import matplotlib.pyplot as plt
+
+# Plot the training and validation loss
+history_dict = history.history
+loss_values = history_dict["loss"]
+val_loss_values = history_dict["val_loss"]
+epochs = range(1, len(loss_values) + 1)
+# "r--" is for "dashed red line."
+plt.plot(epochs, loss_values, "r--", label="Training loss")
+# "b" is for "solid blue line."
+plt.plot(epochs, val_loss_values, "b", label="Validation loss")
+plt.title("[IMDB] Training and validation loss")
+plt.xlabel("Epochs")
+plt.xticks(epochs)
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
+
+#---
+# Clears the figure and plot accuracy
+plt.clf()
+acc = history_dict["accuracy"]
+val_acc = history_dict["val_accuracy"]
+plt.plot(epochs, acc, "r--", label="Training acc")
+plt.plot(epochs, val_acc, "b", label="Validation acc")
+plt.title("[IMDB] Training and validation accuracy")
+plt.xlabel("Epochs")
+plt.xticks(epochs)
+plt.ylabel("Accuracy")
+plt.legend()
+plt.show()
+
+# Example predicitons and texts
+predictions = model.predict(x_test).flatten()
+
+above_08_indexes = np.where(predictions > 0.8)[0]
+below_02_indexes = np.where(predictions < 0.2)[0]
+
+rng = np.random.default_rng(42)
+
+selected_above = rng.choice(above_08_indexes, 10, replace=False)
+selected_below = rng.choice(below_02_indexes, 10, replace=False)
+
+def decode_review(sequence):
+    return " ".join(
+        reverse_word_index.get(index - 3, "?")
+        for index in sequence
+    )
+
+for index in np.concatenate([selected_above, selected_below]):
+    print("Index:", index)
+    print("Prediction:", predictions[index])
+    print("x_test:", x_test[index])
+    print("Decoded text:", decode_review(test_data[index]))
+    print("-" * 100)
+# --- END MODEL EVALUATION
+
 if __name__ == "__main__":
     pass
