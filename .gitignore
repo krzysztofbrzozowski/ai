@@ -1,5 +1,7 @@
 .venv
+.venv*
 .ipynb*
 .DS_Store
 
 *.keras
+datasets
