@@ -1,0 +1,13 @@
+# Commenting out -> on macOS runnigng tensorflow-metal is not working with keras_hub, so using keras.applications instead
+# import keras_hub
+#
+# conv_base = keras_hub.models.Backbone.from_preset("xception_41_imagenet")
+#
+# Old implementation
+from tensorflow import keras
+
+conv_base = keras.applications.Xception(weights="imagenet", include_top=False)
+
+if __name__ == "__main__":
+    conv_base.summary()
+    pass

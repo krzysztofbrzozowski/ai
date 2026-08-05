@@ -19,7 +19,7 @@ source .venv/bin/activate
 ### 2. Install packages
 
 ```bash
-pip install tensorflow-macos tensorflow-metal keras
+pip install tensorflow-macos==2.16.2 tensorflow-metal==1.2.0 keras==3.15.1 keras-hub==0.16.1
 ```
 
 Or from requirements.txt:
@@ -46,3 +46,4 @@ Metal device set to: Apple M4 Pro
 - `tensorflow-macos` 2.16.2 is currently the latest version compatible with `tensorflow-metal`. Newer TensorFlow versions (2.17+) do not yet have built-in Metal support for macOS.
 - Python 3.13 is not supported by `tensorflow-metal` (no cp313 wheel available).
 - If you need a different Python version, the metal plugin supports Python 3.9–3.12.
+- `keras-hub` must be pinned to 0.16.1 — newer versions (0.17+) depend on `tensorflow-text>=2.20` which forces a TensorFlow upgrade and breaks Metal GPU support.
