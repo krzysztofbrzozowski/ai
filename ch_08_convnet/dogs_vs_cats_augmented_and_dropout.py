@@ -74,6 +74,8 @@ x = layers.Conv2D(filters=512, kernel_size=3, activation="relu")(x)     # 9 -> 7
 # Converts the 3D activations with shape (7, 7, 512) into a 1D vector
 # with shape (512,) by averaging each feature map over its spatial dimensions
 x = layers.GlobalAveragePooling2D()(x)
+# Dropout is a regularization technique that randomly sets a fraction of the input units to 0 at each update during training time, which helps prevent overfitting
+x = layers.Dropout(0.25)(x)
 
 # This is a binary classification problem with two possible classes
 # The output layer contains one neuron
@@ -108,6 +110,48 @@ validation_dataset = image_dataset_from_directory(
 test_dataset = image_dataset_from_directory(
     new_base_dir / "test", image_size=image_size, batch_size=batch_size
 )
+
+# --- ADD DATA AUGMENTATION
+import tensorflow as tf
+
+# Defines the transformations to apply as a list
+data_augmentation_layers = [
+    layers.RandomFlip("horizontal"),
+    layers.RandomRotation(0.1),
+    layers.RandomZoom(0.2),
+]
+
+# Creates a function that applies them sequentially
+def data_augmentation(images, targets):
+    for layer in data_augmentation_layers:
+        images = layer(images)
+    return images, targets
+
+# Maps this function into the dataset
+augmented_train_dataset = train_dataset.map(
+    data_augmentation, num_parallel_calls=8
+)
+# Enables prefetching of batches on GPU memory; important for best
+# performance
+augmented_train_dataset = augmented_train_dataset.prefetch(tf.data.AUTOTUNE)
+
+# --- DISPLAY AUGMENTED IMAGES
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(10, 10))
+# You can use take(N) to only sample N batches from the dataset. This
+# is equivalent to inserting a break in the loop after the Nth batch.
+for image_batch, _ in train_dataset.take(1):
+    image = image_batch[0]
+    for i in range(9):
+        ax = plt.subplot(3, 3, i + 1)
+        augmented_image, _ = data_augmentation(image, None)
+        augmented_image = keras.ops.convert_to_numpy(augmented_image)
+        # Displays the first image in the output batch. For each of the
+        # nine iterations, this is a different augmentation of the same
+        # image.
+        plt.imshow(augmented_image.astype("uint8"))
+        plt.axis("off")
 pass
 # --- END DATA LOADING
 # --- START MODEL TRAINING
@@ -116,7 +160,7 @@ MODEL_PATH = (
     PROJECT_DIR
     / "models"
     / "ch_08_convnet"
-    / "dogs_vs_cats.keras"
+    / "dogs_vs_cats_augmented_and_dropout.keras"
 )
 
 callbacks = [
@@ -127,8 +171,8 @@ callbacks = [
     )
 ]
 history = model.fit(
-    train_dataset,
-    epochs=50,
+    augmented_train_dataset,
+    epochs=100,
     validation_data=validation_dataset,
     callbacks=callbacks,
 )
@@ -159,7 +203,7 @@ plt.show()
 test_model = keras.models.load_model(MODEL_PATH)
 test_loss, test_acc = test_model.evaluate(test_dataset)
 print(f"Test accuracy: {test_acc:.3f}")
-# Test accuracy: 0.775
+# Test accuracy: 0.825
 # --- END TEST EVALUATION
 
 if __name__ == "__main__":
