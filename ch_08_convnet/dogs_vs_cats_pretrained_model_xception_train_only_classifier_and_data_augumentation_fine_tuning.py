@@ -25,7 +25,15 @@ from keras import layers
 #     image_size=(180, 180),
 # )
 
-conv_base.trainable = False
+# Enables fine-tuning for the convolutional base
+conv_base.trainable = True
+
+# conv_base.layers contains all layers of the pretrained model
+# [:-4] selects every layer except the last four
+# The loop visits each selected layer and freezes it
+# Frozen layers keep their pretrained weights unchanged during training
+for layer in conv_base.layers[:-4]:
+    layer.trainable = False
 
 inputs = keras.Input(shape=(180, 180, 3))
 
@@ -148,7 +156,7 @@ plt.show()
 test_model = keras.models.load_model(MODEL_PATH)
 test_loss, test_acc = test_model.evaluate(test_dataset)
 print(f"Test accuracy: {test_acc:.3f}")
-# Test accuracy: 0.980
+# Test accuracy: 0.982
 # --- END MODEL EVALUATION
 
 if __name__ == "__main__":
