@@ -52,6 +52,7 @@ outputs = layers.Dense(1, activation="sigmoid")(x)
 
 model = keras.Model(inputs, outputs)
 
+# ADD CUSTOM LEARNIG RATE
 model.compile(
     loss="binary_crossentropy",
     # !IMPORTANT
@@ -128,7 +129,7 @@ callbacks = [
 ]
 history = model.fit(
     augmented_train_dataset,
-    epochs=30,
+    epochs=100,
     validation_data=validation_dataset,
     callbacks=callbacks,
 )

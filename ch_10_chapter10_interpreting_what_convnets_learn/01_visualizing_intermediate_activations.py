@@ -1,0 +1,81 @@
+
+# --- START MODEL LOADING
+import pathlib
+import keras
+
+PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent
+MODEL_PATH = (
+    PROJECT_DIR
+    / "models"
+    / "ch_08_convnet"
+    / "dogs_vs_cats.keras"
+)
+
+model = keras.models.load_model(MODEL_PATH)
+model.summary()
+# Model: "functional"
+# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
+# ┃ Layer (type)                         ┃ Output Shape                ┃         Param # ┃
+# ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
+# │ input_layer (InputLayer)             │ (None, 180, 180, 3)         │               0 │
+# ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+# │ rescaling (Rescaling)                │ (None, 180, 180, 3)         │               0 │
+# ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+# │ conv2d (Conv2D)                      │ (None, 178, 178, 32)        │             896 │
+# ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+# │ max_pooling2d (MaxPooling2D)         │ (None, 89, 89, 32)          │               0 │
+# ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+# │ conv2d_1 (Conv2D)                    │ (None, 87, 87, 64)          │          18,496 │
+# ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+# │ max_pooling2d_1 (MaxPooling2D)       │ (None, 43, 43, 64)          │               0 │
+# ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+# │ conv2d_2 (Conv2D)                    │ (None, 41, 41, 128)         │          73,856 │
+# ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+# │ max_pooling2d_2 (MaxPooling2D)       │ (None, 20, 20, 128)         │               0 │
+# ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+# │ conv2d_3 (Conv2D)                    │ (None, 18, 18, 256)         │         295,168 │
+# ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+# │ max_pooling2d_3 (MaxPooling2D)       │ (None, 9, 9, 256)           │               0 │
+# ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+# │ conv2d_4 (Conv2D)                    │ (None, 7, 7, 512)           │       1,180,160 │
+# ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+# │ global_average_pooling2d             │ (None, 512)                 │               0 │
+# │ (GlobalAveragePooling2D)             │                             │                 │
+# ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+# │ dense (Dense)                        │ (None, 1)                   │             513 │
+# └──────────────────────────────────────┴─────────────────────────────┴─────────────────┘
+#  Total params: 4,707,269 (17.96 MB)
+#  Trainable params: 1,569,089 (5.99 MB)
+#  Non-trainable params: 0 (0.00 B)
+#  Optimizer params: 3,138,180 (11.97 MB)
+# --- END MODEL LOADING
+# --- LOAD IMAGE AND DISPLAY IT
+import numpy as np
+
+# Downloads a test image
+img_path = keras.utils.get_file(
+    fname="cat.jpg", origin="https://img-datasets.s3.amazonaws.com/cat.jpg"
+)
+
+def get_img_array(img_path, target_size):
+    # Opens the image file and resizes it
+    img = keras.utils.load_img(img_path, target_size=target_size)
+    # Turns the image into a float32 NumPy array of shape (180, 180, 3)
+    array = keras.utils.img_to_array(img)
+    # We add a dimension to transform our array into a "batch" of a
+    # single sample. Its shape is now (1, 180, 180, 3).
+    array = np.expand_dims(array, axis=0)
+    return array
+
+img_tensor = get_img_array(img_path, target_size=(180, 180))
+
+# --- DISPLAY IMAGE
+import matplotlib.pyplot as plt
+
+plt.axis("off")
+plt.imshow(img_tensor[0].astype("uint8"))
+plt.show()
+# --- END DISPLAY IMAGE
+
+if __name__ == "__main__":
+    pass
