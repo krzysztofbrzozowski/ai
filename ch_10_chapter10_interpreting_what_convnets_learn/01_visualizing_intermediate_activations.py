@@ -120,7 +120,7 @@ FEATURE_MAPS_DIR = (
 )
 
 FEATURE_MAPS_DIR.mkdir(parents=True, exist_ok=True)
-
+# Save all feature maps of the first layer activation to a directory
 for i in range(first_layer_activation.shape[-1]):
     plt.matshow(first_layer_activation[0, :, :, i], cmap="viridis")
     plt.axis("off")
@@ -131,6 +131,70 @@ for i in range(first_layer_activation.shape[-1]):
         pad_inches=0,
     )
     plt.close()
+
+# --- Save all feature maps of all layers activation to a directory
+images_per_row = 16
+
+FEATURE_MAPS_DIR = (
+    PROJECT_DIR
+    / "docs"
+    / "imgs"
+    / "ch_10"
+    / "feature_maps"
+)
+
+FEATURE_MAPS_DIR.mkdir(parents=True, exist_ok=True)
+
+for layer_no, (layer_name, layer_activation) in enumerate(
+    zip(layer_names, activations)
+):
+    n_features = layer_activation.shape[-1]
+    size = layer_activation.shape[1]
+
+    n_rows = n_features // images_per_row
+
+    display_grid = np.zeros(
+        (
+            (size + 1) * n_rows - 1,
+            images_per_row * (size + 1) - 1,
+        )
+    )
+
+    for row in range(n_rows):
+        for col in range(images_per_row):
+            channel_index = row * images_per_row + col
+
+            channel_image = layer_activation[
+                0, :, :, channel_index
+            ].copy()
+
+            if channel_image.sum() != 0:
+                channel_image -= channel_image.mean()
+
+                # Avoid division by zero for constant feature maps
+                if channel_image.std() != 0:
+                    channel_image /= channel_image.std()
+
+                channel_image *= 64
+                channel_image += 128
+
+            channel_image = np.clip(
+                channel_image, 0, 255
+            ).astype("uint8")
+
+            display_grid[
+                row * (size + 1) : (row + 1) * size + row,
+                col * (size + 1) : (col + 1) * size + col,
+            ] = channel_image
+
+    # Saves the complete feature map grid directly as an image
+    plt.imsave(
+        FEATURE_MAPS_DIR
+        / f"layer_no_{layer_no}_layer_name_{layer_name}.png",
+        display_grid,
+        cmap="viridis",
+    )
+# --- END DISPLAY INTERMEDIATE ACTIVATIONS
 
 if __name__ == "__main__":
     pass

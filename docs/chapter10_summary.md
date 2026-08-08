@@ -1,3 +1,4 @@
+# Visualizing intermediate activations
 ## First conv2d activation layer outputs -> each image for one feature map of 32
 ```python
 # Model: "functional"
@@ -70,4 +71,106 @@
   <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_30.png" width="12%">
   <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_31.png" width="12%">
 
+</div>
+
+
+### Feature maps
+
+```text
+# │ conv2d (Conv2D)                      │ (None, 178, 178, 32)        │             896 │
+```
+
+**Feature map size:** `178 × 178`  
+**Number of feature maps / channels:** `32`
+
+<div style="display: flex; width: 100%;">
+  <img src="imgs/ch_10/feature_maps/layer_no_0_layer_name_conv2d.png" width="100%">
+</div>
+
+```text
+# │ max_pooling2d (MaxPooling2D)         │ (None, 89, 89, 32)          │               0 │
+```
+
+**Feature map size:** `89 × 89`  
+**Number of feature maps / channels:** `32`
+
+<div style="display: flex; width: 100%;">
+  <img src="imgs/ch_10/feature_maps/layer_no_1_layer_name_max_pooling2d.png" width="85%">
+</div>
+
+```text
+# │ conv2d_1 (Conv2D)                    │ (None, 87, 87, 64)          │          18,496 │
+```
+
+**Feature map size:** `87 × 87`  
+**Number of feature maps / channels:** `64`
+
+<div style="display: flex; width: 100%;">
+  <img src="imgs/ch_10/feature_maps/layer_no_2_layer_name_conv2d_1.png" width="75%">
+</div>
+
+```text
+# │ max_pooling2d_1 (MaxPooling2D)       │ (None, 43, 43, 64)          │               0 │
+```
+
+**Feature map size:** `43 × 43`  
+**Number of feature maps / channels:** `64`
+
+<div style="display: flex; width: 100%;">
+  <img src="imgs/ch_10/feature_maps/layer_no_3_layer_name_max_pooling2d_1.png" width="65%">
+</div>
+
+```text
+# │ conv2d_2 (Conv2D)                    │ (None, 41, 41, 128)         │          73,856 │
+```
+
+**Feature map size:** `41 × 41`  
+**Number of feature maps / channels:** `128`
+
+<div style="display: flex; width: 100%;">
+  <img src="imgs/ch_10/feature_maps/layer_no_4_layer_name_conv2d_2.png" width="55%">
+</div>
+
+```text
+# │ max_pooling2d_2 (MaxPooling2D)       │ (None, 20, 20, 128)         │               0 │
+```
+
+**Feature map size:** `20 × 20`  
+**Number of feature maps / channels:** `128`
+
+<div style="display: flex; width: 100%;">
+  <img src="imgs/ch_10/feature_maps/layer_no_5_layer_name_max_pooling2d_2.png" width="45%">
+</div>
+
+```text
+# │ conv2d_3 (Conv2D)                    │ (None, 18, 18, 256)         │         295,168 │
+```
+
+**Feature map size:** `18 × 18`  
+**Number of feature maps / channels:** `256`
+
+<div style="display: flex; width: 100%;">
+  <img src="imgs/ch_10/feature_maps/layer_no_6_layer_name_conv2d_3.png" width="35%">
+</div>
+
+```text
+# │ max_pooling2d_3 (MaxPooling2D)       │ (None, 9, 9, 256)           │               0 │
+```
+
+**Feature map size:** `9 × 9`  
+**Number of feature maps / channels:** `256`
+
+<div style="display: flex; width: 100%;">
+  <img src="imgs/ch_10/feature_maps/layer_no_7_layer_name_max_pooling2d_3.png" width="28%">
+</div>
+
+```text
+# │ conv2d_4 (Conv2D)                    │ (None, 7, 7, 512)           │       1,180,160 │
+```
+
+**Feature map size:** `7 × 7`  
+**Number of feature maps / channels:** `512`
+
+<div style="display: flex; width: 100%;">
+  <img src="imgs/ch_10/feature_maps/layer_no_8_layer_name_conv2d_4.png" width="22%">
 </div>
