@@ -1,18 +1,5 @@
-
-# --- START MODEL LOADING
-import pathlib
-import keras
-
-PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent
-MODEL_PATH = (
-    PROJECT_DIR
-    / "models"
-    / "ch_08_convnet"
-    / "dogs_vs_cats.keras"
-)
-
-model = keras.models.load_model(MODEL_PATH)
-model.summary()
+## First conv2d activation layer outputs -> each image for one feature map of 32
+```python
 # Model: "functional"
 # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
 # ┃ Layer (type)                         ┃ Output Shape                ┃         Param # ┃
@@ -21,7 +8,7 @@ model.summary()
 # ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
 # │ rescaling (Rescaling)                │ (None, 180, 180, 3)         │               0 │
 # ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
-# │ conv2d (Conv2D)                      │ (None, 178, 178, 32)        │             896 │
+# │ conv2d (Conv2D)                      │ (None, 178, 178, 32)        │             896 │  <------ HERE
 # ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
 # │ max_pooling2d (MaxPooling2D)         │ (None, 89, 89, 32)          │               0 │
 # ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
@@ -44,93 +31,43 @@ model.summary()
 # ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
 # │ dense (Dense)                        │ (None, 1)                   │             513 │
 # └──────────────────────────────────────┴─────────────────────────────┴─────────────────┘
-#  Total params: 4,707,269 (17.96 MB)
-#  Trainable params: 1,569,089 (5.99 MB)
-#  Non-trainable params: 0 (0.00 B)
-#  Optimizer params: 3,138,180 (11.97 MB)
-# --- END MODEL LOADING
-# --- LOAD IMAGE AND DISPLAY IT
-import numpy as np
+```
+<div style="display: flex; flex-wrap: wrap; gap: 4px;">
 
-# Downloads a test image
-img_path = keras.utils.get_file(
-    fname="cat.jpg", origin="https://img-datasets.s3.amazonaws.com/cat.jpg"
-)
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_0.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_1.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_2.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_3.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_4.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_5.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_6.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_7.png" width="12%">
 
-def get_img_array(img_path, target_size):
-    # Opens the image file and resizes it
-    img = keras.utils.load_img(img_path, target_size=target_size)
-    # Turns the image into a float32 NumPy array of shape (180, 180, 3)
-    array = keras.utils.img_to_array(img)
-    # We add a dimension to transform our array into a "batch" of a
-    # single sample. Its shape is now (1, 180, 180, 3).
-    array = np.expand_dims(array, axis=0)
-    return array
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_8.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_9.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_10.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_11.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_12.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_13.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_14.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_15.png" width="12%">
 
-img_tensor = get_img_array(img_path, target_size=(180, 180))
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_16.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_17.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_18.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_19.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_20.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_21.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_22.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_23.png" width="12%">
 
-# --- DISPLAY IMAGE
-import matplotlib.pyplot as plt
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_24.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_25.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_26.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_27.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_28.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_29.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_30.png" width="12%">
+  <img src="imgs/ch_10/feature_maps_first_layer_activation/feature_map_31.png" width="12%">
 
-plt.axis("off")
-plt.imshow(img_tensor[0].astype("uint8"))
-plt.show()
-# --- END DISPLAY IMAGE
-
-# --- START INTERMEDIATE ACTIVATIONS
-# Note:
-# The model will return the outputs of all Conv2D and MaxPooling2D layers, given the model input
-# This is not the same as "model", this will only return the outputs of the intermediate layers, not the final output of the model
-from keras import layers
-
-layer_outputs = []
-layer_names = []
-# Extracts the outputs of all Conv2D and MaxPooling2D layers and put
-# them in a list
-for layer in model.layers:
-    if isinstance(layer, (layers.Conv2D, layers.MaxPooling2D)):
-        layer_outputs.append(layer.output)
-        # Saves the layer names for later
-        layer_names.append(layer.name)
-# Creates a model that will return these outputs, given the model input
-activation_model = keras.Model(inputs=model.input, outputs=layer_outputs)
-# --- END INTERMEDIATE ACTIVATIONS
-# --- START DISPLAY INTERMEDIATE ACTIVATIONS
-# Returns a list of nine NumPy arrays — one array per layer activation
-activations = activation_model.predict(img_tensor)
-first_layer_activation = activations[0]
-print(first_layer_activation.shape)
-# Returns a 4D tensor with shape (1, 178, 178, 33) -> 32 channels feature maps
-# (1, 178, 178, 32)
-
-# Display channges of the first layer activation
-import matplotlib.pyplot as plt
-
-# Change last parameter to display different channels of the first layer activation
-# You can use other colormaps as well, e.g. "gray", "hot", "magma", or "plasma"
-plt.matshow(first_layer_activation[0, :, :, 5], cmap="viridis")
-
-# Save all feature maps of the first layer activation to a directory
-FEATURE_MAPS_DIR = (
-    PROJECT_DIR
-    / "docs"
-    / "imgs"
-    / "ch_10"
-    / "feature_maps_first_layer_activation"
-)
-
-FEATURE_MAPS_DIR.mkdir(parents=True, exist_ok=True)
-
-for i in range(first_layer_activation.shape[-1]):
-    plt.matshow(first_layer_activation[0, :, :, i], cmap="viridis")
-    plt.axis("off")
-    plt.savefig(
-        FEATURE_MAPS_DIR / f"feature_map_{i}.png",
-        dpi=300,
-        bbox_inches="tight",
-        pad_inches=0,
-    )
-    plt.close()
-
-if __name__ == "__main__":
-    pass
+</div>
