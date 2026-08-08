@@ -82,7 +82,7 @@ class LossHistory(keras.callbacks.Callback):
         plt.xlabel(f"Batch (epoch {epoch})")
         plt.ylabel("Loss")
         plt.legend()
-        plt.savefig(f"doc/imgs/07/custom_callbacks/plot_at_epoch_{epoch}", dpi=300)
+        plt.savefig(f"docs/imgs/07/custom_callbacks/plot_at_epoch_{epoch}", dpi=300)
         self.per_batch_losses = []
 
 model = get_mnist_model()

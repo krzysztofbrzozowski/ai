@@ -77,5 +77,38 @@ plt.imshow(img_tensor[0].astype("uint8"))
 plt.show()
 # --- END DISPLAY IMAGE
 
+# --- START INTERMEDIATE ACTIVATIONS
+# Note:
+# The model will return the outputs of all Conv2D and MaxPooling2D layers, given the model input
+# This is not the same as "model", this will only return the outputs of the intermediate layers, not the final output of the model
+from keras import layers
+
+layer_outputs = []
+layer_names = []
+# Extracts the outputs of all Conv2D and MaxPooling2D layers and put
+# them in a list
+for layer in model.layers:
+    if isinstance(layer, (layers.Conv2D, layers.MaxPooling2D)):
+        layer_outputs.append(layer.output)
+        # Saves the layer names for later
+        layer_names.append(layer.name)
+# Creates a model that will return these outputs, given the model input
+activation_model = keras.Model(inputs=model.input, outputs=layer_outputs)
+# --- END INTERMEDIATE ACTIVATIONS
+# --- START DISPLAY INTERMEDIATE ACTIVATIONS
+# Returns a list of nine NumPy arrays — one array per layer activation
+activations = activation_model.predict(img_tensor)
+first_layer_activation = activations[0]
+print(first_layer_activation.shape)
+# Returns a 4D tensor with shape (1, 178, 178, 33) -> 32 channels feature maps
+# (1, 178, 178, 32)
+
+# Display channges of the first layer activation
+import matplotlib.pyplot as plt
+
+# Change last parameter to display different channels of the first layer activation
+# You can use other colormaps as well, e.g. "gray", "hot", "magma", or "plasma"
+plt.matshow(first_layer_activation[0, :, :, 5], cmap="viridis")
+
 if __name__ == "__main__":
     pass
