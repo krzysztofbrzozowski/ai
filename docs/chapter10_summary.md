@@ -304,6 +304,6 @@ Important desctiption
     # are for the selected class
 ```
 <div style="display: flex; width: 100%; gap: 10px;">
-  <img src="imgs/ch_10/heat_maps/heatmap.png" width="50%">
-  <img src="imgs/ch_10/heat_maps/superimposed_heatmap.png" width="50%">
+  <img src="imgs/ch_10/heat_maps/heatmap.png" width="49%">
+  <img src="imgs/ch_10/heat_maps/superimposed_heatmap.png" width="49%">
 </div>
