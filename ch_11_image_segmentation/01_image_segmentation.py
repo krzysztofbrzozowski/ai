@@ -232,9 +232,9 @@ plt.ylabel("IoU")
 plt.legend()
 # --- END MODEL LOSS AND METRICS PLOT
 # --- START DISPLAYING SOME PREDICTIONS
-model = keras.models.load_model("oxford_segmentation.keras")
+model = keras.models.load_model(MODEL_PATH)
 
-i = 1337
+i = 665
 test_image = val_input_imgs[i]
 plt.axis("off")
 plt.imshow(array_to_img(test_image))
