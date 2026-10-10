@@ -5,3 +5,6 @@
 
 *.keras
 datasets
+
+__pycache__/
+*.pyc
