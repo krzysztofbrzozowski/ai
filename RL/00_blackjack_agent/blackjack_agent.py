@@ -55,7 +55,7 @@ class BlackjackAgent:
         # (Zero if episode terminated - no future rewards possible)
         # ---
         # obs      = (15, 10, False)  # State before action
-        # action   = 1                # HIT
+        # action   = 0                # STAND
         # next_obs = (19, 10, False)  # State after action
         # ---
         # self.q_values[next_obs] = [0.8, 0.2]

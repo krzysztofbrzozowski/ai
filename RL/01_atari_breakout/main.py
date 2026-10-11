@@ -1,0 +1,198 @@
+# --- START SETUP
+import os
+
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
+import keras
+from keras import layers
+
+import gymnasium as gym
+import ale_py
+from gymnasium.wrappers import AtariPreprocessing, FrameStackObservation
+
+import numpy as np
+import tensorflow as tf
+
+# We are importing model and model_target
+from model import *
+
+# --- START GLOBAL VARIABLES
+# Configuration parameters for the whole setup
+seed = 42
+gamma = 0.99  # Discount factor for past rewards
+epsilon = 1.0  # Epsilon greedy parameter
+epsilon_min = 0.1  # Minimum epsilon greedy parameter
+epsilon_max = 1.0  # Maximum epsilon greedy parameter
+epsilon_interval = (
+    epsilon_max - epsilon_min
+)  # Rate at which to reduce chance of random action being taken
+batch_size = 32  # Size of batch taken from replay buffer
+max_steps_per_episode = 10000
+max_episodes = 10  # Limit training episodes, will run until solved if smaller than 1
+# ---
+# Number of frames for exploration
+epsilon_greedy_frames = 1000000.0
+# --- END GLOBAL VARIABLES
+
+# Register Atari environments
+gym.register_envs(ale_py)
+
+# Create the Breakout environment without built-in frame skipping
+# Set render_mode="human" to display the game in a window
+env = gym.make(
+    "ALE/Breakout-v5",
+    frameskip=1,
+    repeat_action_probability=0.0,
+    # render_mode="human",
+)
+
+# Environment preprocessing:
+# -> Each action is repeated for 4 consecutive game frames
+# -> Images are converted to grayscale
+# -> Images are resized to 84x84 pixels
+env = AtariPreprocessing(env, frame_skip=4)
+
+# Stack the last 4 observations to capture motion information
+env = FrameStackObservation(env, stack_size=4)
+
+# The two wrappers above produce the following observations:
+#
+# Game frames:   1   2   3   4   5   6   7   8   9  10  11  12
+#                └───────────┘   └───────────┘   └───────────┘
+# Action:              A               B               C
+# Observation:               ↑               ↑               ↑
+#
+# Each observation contains the last 4 preprocessed images.
+# Observation shape: (4, 84, 84)
+#
+# Frame skip = 4: The agent selects a new action every 4 game frames.
+# Frame stack = 4: The agent observes the last 4 processed images.
+
+# Initialize the environment with a fixed random seed
+env.action_space.seed(seed)
+
+print("Observation shape:", state.shape)  # (4, 84, 84)
+# --- END SETUP
+
+# Use epsilon-greedy for exploration
+# In DQN case, instead of taking value from Q-table, CNN giving us the prediction
+def get_action(state):
+    if frame_count < epsilon_random_frames or epsilon > np.random.rand(1)[0]:
+        # Take random action
+        return np.random.choice(num_actions)
+    else:
+        # Predict action Q-values
+        # From environment state
+        # Convert observations to the tensor
+        state_tensor = keras.ops.convert_to_tensor(state)
+        # Expand the state tensor with one new diamention
+        # -> state_tensor.shape  # (1, 4, 84, 84)
+        state_tensor = keras.ops.expand_dims(state_tensor, 0)
+        # It is similar to action_probs = model.predict(state_tensor)
+        # model.predict() introduces additional overhead:
+        # -> Validates and prepares input data
+        # -> Creates and manages batches
+        # -> Handles the prediction loop
+        # -> Converts output tensors to NumPy arrays
+        #
+        # For a single observation, calling model() directly avoids
+        # much of this overhead and is usually faster.
+        # ---
+        # action_probs = [[1.2, 0.5, 4.8, 2.1]]
+        action_probs = model(state_tensor, training=False)
+        # Take best action (NOOP, FIRE, RIGHT or LEFT)
+        return keras.ops.argmax(action_probs[0]).numpy()
+
+# --- START MAIN LOOP/TRAINING
+# In the Deepmind paper they use RMSProp however then Adam optimizer
+# improves training time
+optimizer = keras.optimizers.Adam(learning_rate=0.00025, clipnorm=1.0)
+
+while True:
+    obs, info = env.reset(seed=seed)
+
+    state = np.array(obs)
+    episode_reward = 0
+
+    for timestep in range(1, max_steps_per_episode):
+        frame_count += 1
+
+        # Get the best possible action if epsilon is small (exploitation)
+        action = get_action(state=state)
+
+        # Decay probability of taking random action
+        # After some random moves
+        # TODO It might be needed to use this as global or maybe add this to calass like in RL 00
+        epsilon -= epsilon_interval / epsilon_greedy_frames
+        epsilon = max(epsilon, epsilon_min)
+
+        # Apply the action in our environment, it is similar
+        # to obs_next from previous example
+        # ---
+        # Till here we have few mine steps
+        # 1. Observation of the game
+        #   -> at fisrt the observation is taken from reset env.reset(seed=seed)
+        #   -> later on the observation is taken from state = state_next 
+        # 2. Get action (CNN model)
+        # 3. Execute the step from prediction in env.step(action)
+        # 4. Go to point 1 (state = state_next)
+        state_next, reward, terminated, _, _ = env.step(action)
+        state_next = np.array(state_next)
+
+        episode_reward += reward
+
+        # Save actions and states in replay buffer
+        # Why do we use a Replay Buffer -> this is collection of training samples?
+        #   -> We are storing each move of the game and history
+        #   -> Later on we are randomizing the move choice np.random.choice
+        #       -> thats why the corelation between conse
+        action_history.append(action)
+        state_history.append(state)
+        state_next_history.append(state_next)
+        done_history.append(terminated)
+        rewards_history.append(reward)
+        state = state_next
+
+        # Update every fourth frame and once batch size is over 32
+        # The model is trained on batches of 32 experiences every 4 agent steps.
+        # Since AtariPreprocessing uses frame_skip=4, the model is updated
+        # approximately every 16 game frames.
+        if frame_count % update_after_actions == 0 \
+        and len(done_history) > batch_size:
+            # Get indices of samples for replay buffers
+            indices = np.random.choice(range(len(done_history)), size=batch_size)
+
+            # Using list comprehension to sample from replay buffer
+            state_sample = np.array([state_history[i] for i in indices])
+            state_next_sample = np.array([state_next_history[i] for i in indices])
+            rewards_sample = [rewards_history[i] for i in indices]
+            action_sample = [action_history[i] for i in indices]
+            done_sample = keras.ops.convert_to_tensor(
+                [float(done_history[i]) for i in indices]
+            )
+
+            # Build the updated Q-values for the sampled future states
+            # Use the target model for stability
+            # Model is trying to predict few samples
+            # TODO, why? I don't understand this
+            # model_target is copy of main model -> model
+            # state_next_sample.shape() -> (32, 4, 84, 84) -> we have 32 observations
+            # future_rewards.shape() -> (32, 4) -> we have 4 Q-Values for 32 observations
+            # future_rewards = [
+            #     [1.0, 2.0, 3.5, 0.5],  # Experience 1: NOOP, FIRE, RIGHT, LEFT
+            #     [2.0, 1.0, 0.5, 1.5],  # Experience 2
+            #     [0.5, 4.2, 1.0, 2.0],  # Experience 3
+            # ]
+            future_rewards = model_target.predict(state_next_sample)
+            # Q value = reward + discount factor * expected future reward
+            # keras.ops.amax(future_rewards, axis=1) -> max value from the future reward
+            # Select the highest Q-value for each experience
+            # max_future_q = keras.ops.amax(future_rewards, axis=1)
+            # max_future_q.shape     (32,)
+            # updated_q_values.shape (32,)
+            updated_q_values = rewards_sample + gamma * keras.ops.amax(
+                future_rewards, axis=1
+            )
+            
+            # If final frame set the last value to -1
+            updated_q_values = updated_q_values * (1 - done_sample) - done_sample

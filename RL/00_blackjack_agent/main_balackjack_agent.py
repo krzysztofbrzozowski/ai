@@ -35,7 +35,7 @@ for episode in tqdm(range(n_episodes)):
         # Action will be 0 = Stand, 1 = Hit
         # ---
         # self.q_values = defaultdict(lambda: np.zeros(env.action_space.n))
-        #   -> At the beginning the tict is empty -> {}
+        #   -> At the beginning the dict is empty -> {}
         #   -> when any action will be called e.g. 
         #                   self.q_values[(15, 10, False)]
         #   -> then the dict entry will be created
@@ -58,7 +58,7 @@ for episode in tqdm(range(n_episodes)):
 
         # Learn from this experience
         # obs      = (15, 10, False)  # State before action
-        # action   = 1                # HIT
+        # action   = 0                # HIT
         # next_obs = (19, 10, False)  # State after action
         agent.update(obs, action, reward, terminated, next_obs)
 
