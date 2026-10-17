@@ -196,3 +196,68 @@ while True:
             
             # If final frame set the last value to -1
             updated_q_values = updated_q_values * (1 - done_sample) - done_sample
+            
+            # Calculate loss function 
+            with tf.GradientTape() as tape:
+                # Train the model on the states and updated Q-values
+                q_values = model(state_sample)
+
+                # Apply the masks to the Q-values to get the Q-value for action taken
+                q_action = keras.ops.sum(keras.ops.multiply(q_values, masks), axis=1)
+                # Calculate loss between new Q-value and old Q-value
+                # 32 current q_action values how different with next_state updated 32 q_action values
+                # We have loss
+                # updated_q_values  → y_true, the target values calculated using model_target.
+                # q_action          → y_pred, the Q-values predicted by our model.
+                loss = loss_function(updated_q_values, q_action)
+
+            # Backpropagation
+            # Backpropagete the gradients to the model
+            grads = tape.gradient(loss, model.trainable_variables)
+            optimizer.apply_gradients(zip(grads, model.trainable_variables))
+
+        # Update model target each ~10k samples
+        # We are updating every 10k to avoid situation model is constantly changing the target
+        # In supervised learning
+        #   -> loss = loss_function(y_true, y_pred)
+        # In DQN
+        #   -> loss = loss_function(updated_q_values, q_action)
+        # So we need to have more or less constant target to train the model
+        if frame_count % update_target_network == 0:
+            # update the the target network with new weights
+            model_target.set_weights(model.get_weights())
+            # Log details
+            template = "running reward: {:.2f} at episode {}, frame count {}"
+            print(template.format(running_reward, episode_count, frame_count))
+
+        # Limit the state and reward history
+        # Remove the oldest element from history
+        if len(rewards_history) > max_memory_length:
+            del rewards_history[:1]
+            del state_history[:1]
+            del state_next_history[:1]
+            del action_history[:1]
+            del done_history[:1]
+        
+        
+        # Break for loop
+        if done:
+            break
+
+    # Update running reward to check condition for solving
+    episode_reward_history.append(episode_reward)
+    if len(episode_reward_history) > 100:
+        del episode_reward_history[:1]
+    running_reward = np.mean(episode_reward_history)
+
+    episode_count += 1
+
+    if running_reward > 40:  # Condition to consider the task solved
+        print("Solved at episode {}!".format(episode_count))
+        break
+
+    if (
+        max_episodes > 0 and episode_count >= max_episodes
+    ):  # Maximum number of episodes reached
+        print("Stopped at episode {}!".format(episode_count))
+        break
