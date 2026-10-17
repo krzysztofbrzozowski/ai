@@ -1,5 +1,6 @@
 # --- START SETUP
 import os
+from pathlib import Path
 
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
@@ -28,11 +29,22 @@ epsilon_interval = (
 )  # Rate at which to reduce chance of random action being taken
 batch_size = 32  # Size of batch taken from replay buffer
 max_steps_per_episode = 10000
-max_episodes = 10  # Limit training episodes, will run until solved if smaller than 1
+max_episodes = 10000  # Limit training episodes, will run until solved if smaller than 1
+model_weights_path = Path(__file__).resolve().parent / "breakout.weights.h5"
 # ---
 # Number of frames for exploration
 epsilon_greedy_frames = 1000000.0
 # --- END GLOBAL VARIABLES
+
+# Continue learning from saved weights when available.
+if model_weights_path.is_file():
+    model.load_weights(model_weights_path)
+    print("Loaded model weights from {}".format(model_weights_path))
+else:
+    print("No saved model weights found; starting training from scratch.")
+
+# Start the target network with the same weights as the main model.
+model_target.set_weights(model.get_weights())
 
 # Register Atari environments
 gym.register_envs(ale_py)
@@ -43,7 +55,7 @@ env = gym.make(
     "ALE/Breakout-v5",
     frameskip=1,
     repeat_action_probability=0.0,
-    # render_mode="human",
+    render_mode="human",
 )
 
 # Environment preprocessing:
@@ -71,16 +83,19 @@ env = FrameStackObservation(env, stack_size=4)
 # Initialize the environment with a fixed random seed
 env.action_space.seed(seed)
 
-print("Observation shape:", state.shape)  # (4, 84, 84)
+print("Observation shape:", env.observation_space.shape)  # (4, 84, 84)
 # --- END SETUP
 
 # Use epsilon-greedy for exploration
 # In DQN case, instead of taking value from Q-table, CNN giving us the prediction
 def get_action(state):
+    print(f"epsilon: {epsilon}, frame_count: {frame_count}")
     if frame_count < epsilon_random_frames or epsilon > np.random.rand(1)[0]:
         # Take random action
+        print(f"random action")
         return np.random.choice(num_actions)
     else:
+        print("model prediction")
         # Predict action Q-values
         # From environment state
         # Convert observations to the tensor
@@ -104,6 +119,31 @@ def get_action(state):
         return keras.ops.argmax(action_probs[0]).numpy()
 
 # --- START MAIN LOOP/TRAINING
+# Experience replay buffers
+action_history = []
+state_history = []
+state_next_history = []
+rewards_history = []
+done_history = []
+episode_reward_history = []
+running_reward = 0
+best_running_reward = -float("inf")
+episode_count = 0
+frame_count = 0
+# Number of frames to take random action and observe output
+epsilon_random_frames = 50000
+# Number of frames for exploration
+epsilon_greedy_frames = 1000000.0
+# Maximum replay length
+# Note: The Deepmind paper suggests 1000000 however this causes memory issues
+max_memory_length = 100000
+# Train the model after 4 actions
+update_after_actions = 4
+# How often to update the target network
+update_target_network = 10000
+# Using huber loss for stability
+loss_function = keras.losses.Huber()
+
 # In the Deepmind paper they use RMSProp however then Adam optimizer
 # improves training time
 optimizer = keras.optimizers.Adam(learning_rate=0.00025, clipnorm=1.0)
@@ -197,6 +237,9 @@ while True:
             # If final frame set the last value to -1
             updated_q_values = updated_q_values * (1 - done_sample) - done_sample
             
+            # Create a mask so we only calculate loss on the updated Q-values
+            masks = keras.ops.one_hot(action_sample, num_actions)
+
             # Calculate loss function 
             with tf.GradientTape() as tape:
                 # Train the model on the states and updated Q-values
@@ -241,7 +284,7 @@ while True:
         
         
         # Break for loop
-        if done:
+        if terminated:
             break
 
     # Update running reward to check condition for solving
@@ -251,6 +294,16 @@ while True:
     running_reward = np.mean(episode_reward_history)
 
     episode_count += 1
+
+    # Keep the weights with the highest average reward during this training run.
+    if running_reward > best_running_reward:
+        model.save_weights(model_weights_path)
+        best_running_reward = running_reward
+        print(
+            "Saved best model: average reward {:.2f} at episode {} to {}".format(
+                best_running_reward, episode_count, model_weights_path
+            )
+        )
 
     if running_reward > 40:  # Condition to consider the task solved
         print("Solved at episode {}!".format(episode_count))

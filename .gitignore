@@ -4,6 +4,7 @@
 .DS_Store
 
 *.keras
+*.weights.h5
 datasets
 
 __pycache__/

@@ -1,3 +1,7 @@
+import keras
+from keras import layers
+
+
 num_actions = 4
 
 
