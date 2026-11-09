@@ -1,4 +1,5 @@
 # --- START SETUP
+import json
 import os
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from gymnasium.wrappers import AtariPreprocessing, FrameStackObservation
 
 import numpy as np
 import tensorflow as tf
+import h5py
 
 # We are importing model and model_target
 from model import *
@@ -31,20 +33,58 @@ batch_size = 32  # Size of batch taken from replay buffer
 max_steps_per_episode = 10000
 max_episodes = 10000  # Limit training episodes, will run until solved if smaller than 1
 model_weights_path = Path(__file__).resolve().parent / "breakout.weights.h5"
+# Last saved weights shown in the training log, before the crash at frame 1182062.
+# Used only for the existing weights file, which has no training metadata yet.
+legacy_training_state = {
+    "frame_count": 1147261,
+    "episode_count": 4858,
+    "epsilon": 0.1,
+    "best_running_reward": 10.81,
+    "episode_reward_history": [],
+}
 # ---
 # Number of frames for exploration
 epsilon_greedy_frames = 1000000.0
 # --- END GLOBAL VARIABLES
 
 # Continue learning from saved weights when available.
+training_state = {}
 if model_weights_path.is_file():
     model.load_weights(model_weights_path)
+    with h5py.File(model_weights_path, "r") as weights_file:
+        saved_state = weights_file.attrs.get("training_state")
+    training_state = (
+        json.loads(saved_state) if saved_state is not None else legacy_training_state
+    )
+    epsilon = training_state["epsilon"]
     print("Loaded model weights from {}".format(model_weights_path))
+    print(
+        "Resuming at frame {}, after episode {}, epsilon {} (best reward {:.2f}).".format(
+            training_state["frame_count"],
+            training_state["episode_count"],
+            epsilon,
+            training_state["best_running_reward"],
+        )
+    )
+    print("Replay buffer and optimizer start fresh; the game starts a new episode.")
 else:
     print("No saved model weights found; starting training from scratch.")
 
 # Start the target network with the same weights as the main model.
 model_target.set_weights(model.get_weights())
+
+
+def save_training_weights(path, state):
+    # Keep weights and their progress together; replace only a complete file.
+    temporary_path = path.with_name(path.stem + ".tmp.weights.h5")
+    try:
+        model.save_weights(temporary_path)
+        with h5py.File(temporary_path, "a") as weights_file:
+            weights_file.attrs["training_state"] = json.dumps(state)
+        os.replace(temporary_path, path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+
 
 # Register Atari environments
 gym.register_envs(ale_py)
@@ -125,11 +165,15 @@ state_history = []
 state_next_history = []
 rewards_history = []
 done_history = []
-episode_reward_history = []
-running_reward = 0
-best_running_reward = -float("inf")
-episode_count = 0
-frame_count = 0
+episode_reward_history = training_state.get("episode_reward_history", []).copy()
+best_running_reward = training_state.get("best_running_reward", -float("inf"))
+running_reward = (
+    float(np.mean(episode_reward_history))
+    if episode_reward_history
+    else training_state.get("best_running_reward", 0)
+)
+episode_count = training_state.get("episode_count", 0)
+frame_count = training_state.get("frame_count", 0)
 # Number of frames to take random action and observe output
 epsilon_random_frames = 50000
 # Number of frames for exploration
@@ -295,9 +339,19 @@ while True:
 
     episode_count += 1
 
-    # Keep the weights with the highest average reward during this training run.
-    if running_reward > best_running_reward:
-        model.save_weights(model_weights_path)
+    # Rebuild the missing 100-episode history before comparing with the old best.
+    reward_history_ready = not training_state or len(episode_reward_history) == 100
+    if reward_history_ready and running_reward > best_running_reward:
+        save_training_weights(
+            model_weights_path,
+            {
+                "frame_count": frame_count,
+                "episode_count": episode_count,
+                "epsilon": epsilon,
+                "best_running_reward": float(running_reward),
+                "episode_reward_history": [float(r) for r in episode_reward_history],
+            },
+        )
         best_running_reward = running_reward
         print(
             "Saved best model: average reward {:.2f} at episode {} to {}".format(
@@ -305,7 +359,7 @@ while True:
             )
         )
 
-    if running_reward > 40:  # Condition to consider the task solved
+    if reward_history_ready and running_reward > 40:  # Task solved
         print("Solved at episode {}!".format(episode_count))
         break
 
