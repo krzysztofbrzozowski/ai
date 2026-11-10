@@ -199,7 +199,7 @@ for i in range(n):
         ] = image
 
 import pathlib
-PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent
+PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
 FEATURE_MAPS_DIR = (
     PROJECT_DIR
     / "docs"

@@ -3,7 +3,7 @@
 - Adding augumentation (2)
 - Pretrained model with custom classifier -> data passed to classifier via numpy arrays (3)
 
-## 1. Dogs vs Cats (ch_08_convnet/dogs_vs_cats.py)
+## 1. Dogs vs Cats (deep_learning_with_p/ch_08_convnet/dogs_vs_cats.py)
 Simple convnet using few layers
 No optimizations, no adjustments
 
@@ -38,7 +38,7 @@ x = layers.GlobalAveragePooling2D()(x)
   <img src="imgs/ch_08/dogs_vs_cats_training_validation_loss.png" width="49%">
 </div>
 
-## 2. Dogs vs Cats with augumentation and dropout (ch_08_convnet/dogs_vs_cats_augmented_and_dropout.py)
+## 2. Dogs vs Cats with augumentation and dropout (deep_learning_with_p/ch_08_convnet/dogs_vs_cats_augmented_and_dropout.py)
 Augumentation gives slightly better effect if the augumented data will be in test data otherwise might be pointless
 
 Below most relevant part of model
@@ -96,7 +96,7 @@ augmented_train_dataset = augmented_train_dataset.prefetch(tf.data.AUTOTUNE)
   <img src="imgs/ch_08/dogs_vs_cats_training_validation_loss_augumented_and_dropout.png" width="49%">
 </div>
 
-## 3. Dogs vs Cats using pretrained model -> features extracted as numpy array and feed into head (ch_08_convnet/dogs_vs_cats_pretrained_model_xception_train_only_classifier.py)
+## 3. Dogs vs Cats using pretrained model -> features extracted as numpy array and feed into head (deep_learning_with_p/ch_08_convnet/dogs_vs_cats_pretrained_model_xception_train_only_classifier.py)
 There are 2 ways of reuse pretrained model
 - Extract features and feed it to the custom clasiffer (this example) -> data provided as numpy arrays
 - Passthrough the data through whole pretrained model and block training, data provided as regular tensor output
@@ -168,7 +168,7 @@ history = model.fit(
   <img src="imgs/ch_08/dogs_vs_cats_training_validation_loss_pretrained_model_classifier_train_only.png" width="49%">
 </div>
 
-## 4. Dogs vs Cats using pretrained model -> add pretrained model and freeze updating, train head only + augumentation added (ch_08_convnet/dogs_vs_cats_pretrained_model_xception_train_only_classifier_and_data_augumentation.py)
+## 4. Dogs vs Cats using pretrained model -> add pretrained model and freeze updating, train head only + augumentation added (deep_learning_with_p/ch_08_convnet/dogs_vs_cats_pretrained_model_xception_train_only_classifier_and_data_augumentation.py)
 Passthrough the data through whole pretrained model and block training, data provided as regular tensor output
 Below most relevant part of model
 ```python
@@ -245,7 +245,7 @@ history = model.fit(
   <img src="imgs/ch_08/dogs_vs_cats_training_validation_loss_pretrained_model_classifier_train_only_added_augumentation.png" width="49%">
 </div>
 
-## 4. Dogs vs Cats using pretrained model -> add pretrained model with trainable last 4 layers + smaller learnig rate (learning_rate=1e-5) + augumentation (ch_08_convnet/dogs_vs_cats_pretrained_model_xception_train_only_classifier_and_data_augumentation.py)
+## 4. Dogs vs Cats using pretrained model -> add pretrained model with trainable last 4 layers + smaller learnig rate (learning_rate=1e-5) + augumentation (deep_learning_with_p/ch_08_convnet/dogs_vs_cats_pretrained_model_xception_train_only_classifier_and_data_augumentation.py)
 
 Below most relevant part of model
 ```python

@@ -3,7 +3,7 @@
 import pathlib
 import keras
 
-PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent
+PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
 MODEL_PATH = (
     PROJECT_DIR
     / "models"

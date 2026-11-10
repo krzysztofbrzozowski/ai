@@ -13,16 +13,37 @@ conv_base = keras.applications.Xception(weights="imagenet", include_top=False)
 from keras import layers
 # Note:
 # !IMPORTANT
-# In this case we are applying only top layers to the features extracted 
-# from the pretrained model -> features are extracted to the numpy arrays
-# The pretrained model is frozen and not trained
-inputs = keras.Input(shape=(6, 6, 2048))
-# Averages spatial dimensions to flatten the feature map
-x = layers.GlobalAveragePooling2D()(inputs)
+# In this case we are processing all the images through the pretrained model
+# Features are extracted on the fly and the pretrained model is frozen and not trained
+# The pretrained model is used as a feature extractor 
+# and the top layers are trained on the extracted features (not numpy arrays as in the previous implementation)
+# NO FEATURE EXTRACTION TO NUMPY ARRAYS NEEDED
+
+# Commenting out -> on macOS runnigng tensorflow-metal is not working with keras_hub, so using keras.applications.preprocess_input() instead
+# preprocessor = keras_hub.layers.ImageConverter.from_preset(
+#     "xception_41_imagenet",
+#     image_size=(180, 180),
+# )
+
+conv_base.trainable = False
+
+inputs = keras.Input(shape=(180, 180, 3))
+
+# Converts pixel values from [0, 255] to [-1, 1]
+x = keras.applications.xception.preprocess_input(inputs)
+# Newer preprocesing implementation commended due to issues with keras_hub on macOS
+# x = preprocessor(inputs)
+
+# Runs the pretrained model in inference mode
+x = conv_base(x, training=False)
+
+x = layers.GlobalAveragePooling2D()(x)
 x = layers.Dense(256, activation="relu")(x)
 x = layers.Dropout(0.25)(x)
 outputs = layers.Dense(1, activation="sigmoid")(x)
+
 model = keras.Model(inputs, outputs)
+
 model.compile(
     loss="binary_crossentropy",
     optimizer="adam",
@@ -32,7 +53,7 @@ model.compile(
 # --- START DATA LOADING
 import os, shutil, pathlib
 
-PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent
+PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
 
 # Directory where we will store our smaller dataset
 new_base_dir = (
@@ -55,44 +76,29 @@ test_dataset = image_dataset_from_directory(
     new_base_dir / "test", image_size=image_size, batch_size=batch_size
 )
 # --- END DATA LOADING
-# --- START FEATURE EXTRACTION
-# Commenting out -> on macOS runnigng tensorflow-metal is not working with keras_hub, so using keras.applications.preprocess_input() instead
-# preprocessor = keras_hub.layers.ImageConverter.from_preset(
-#     "xception_41_imagenet",
-#     image_size=(180, 180),
-# )
+# --- ADD DATA AUGMENTATION
+import tensorflow as tf
 
-import numpy as np
-def get_features_and_labels(dataset):
-    all_features = []
-    all_labels = []
+# Defines the transformations to apply as a list
+data_augmentation_layers = [
+    layers.RandomFlip("horizontal"),
+    layers.RandomRotation(0.1),
+    layers.RandomZoom(0.2),
+]
 
-    for images, labels in dataset:
-        preprocessed_images = (
-            # Use older implementation of preprocessor to avoid issues with keras_hub on macOS
-            keras.applications.xception.preprocess_input(images)
-        )
-        # Commenting out -> on macOS runnigng tensorflow-metal is not working with keras_hub, so using keras.applications.preprocess_input() instead
-        # preprocessed_images = preprocessor(images)
+# Creates a function that applies them sequentially
+def data_augmentation(images, targets):
+    for layer in data_augmentation_layers:
+        images = layer(images)
+    return images, targets
 
-        # Main part: extract features using the pretrained model
-        features = conv_base.predict(
-            preprocessed_images,
-            verbose=0,
-        )
-
-        all_features.append(features)
-        all_labels.append(labels)
-
-    return (
-        np.concatenate(all_features),
-        np.concatenate(all_labels),
-    )
-
-# EXTRTACT FEATURES FOR ALL DATASETS FORM PRETRAINED MODEL
-train_features, train_labels = get_features_and_labels(train_dataset)
-val_features, val_labels = get_features_and_labels(validation_dataset)
-test_features, test_labels = get_features_and_labels(test_dataset)
+# Maps this function into the dataset
+augmented_train_dataset = train_dataset.map(
+    data_augmentation, num_parallel_calls=8
+)
+# Enables prefetching of batches on GPU memory; important for best
+# performance
+augmented_train_dataset = augmented_train_dataset.prefetch(tf.data.AUTOTUNE)
 # --- END FEATURE EXTRACTION FORM PRETRAINED MODEL
 # --- START MODEL TRAINING
 
@@ -100,7 +106,7 @@ MODEL_PATH = (
     PROJECT_DIR
     / "models"
     / "ch_08_convnet"
-    / "dogs_vs_cats_pretrained_model_xception_head_training_only.keras"
+    / "dogs_vs_cats_pretrained_model_xception_head_training_only_with_data_augmentation.keras"
 )
 
 callbacks = [
@@ -111,10 +117,9 @@ callbacks = [
     )
 ]
 history = model.fit(
-    train_features,
-    train_labels,
-    epochs=10,
-    validation_data=(val_features, val_labels),
+    augmented_train_dataset,
+    epochs=30,
+    validation_data=validation_dataset,
     callbacks=callbacks,
 )
 # --- END MODEL TRAINING
@@ -139,9 +144,9 @@ plt.show()
 # --- END MODEL VERIFICATION
 # --- START MODEL EVALUATION
 test_model = keras.models.load_model(MODEL_PATH)
-test_loss, test_acc = test_model.evaluate(test_features, test_labels)
+test_loss, test_acc = test_model.evaluate(test_dataset)
 print(f"Test accuracy: {test_acc:.3f}")
-# Test accuracy: 0.983
+# Test accuracy: 0.980
 # --- END MODEL EVALUATION
 
 if __name__ == "__main__":

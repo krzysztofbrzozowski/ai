@@ -176,7 +176,7 @@
 </div>
 
 # Visualizing ConvNet filters
-File ch_10_chapter10_interpreting_what_convnets_learn/02_visualizing_convnet_filters.py via gradient ascent shows how the filter is reacting based on the image:
+File deep_learning_with_p/ch_10_chapter10_interpreting_what_convnets_learn/02_visualizing_convnet_filters.py via gradient ascent shows how the filter is reacting based on the image:
 Important part:
 ```python
     # Calling model(image) vs model.predict(image) is different

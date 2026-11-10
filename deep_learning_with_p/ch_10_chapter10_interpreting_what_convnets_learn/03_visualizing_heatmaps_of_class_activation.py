@@ -140,7 +140,7 @@ heatmap = np.mean(last_conv_layer_output, axis=-1)
 
 import pathlib
 
-PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent
+PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
 HEAT_MAPS_DIR = (
     PROJECT_DIR
     / "docs"

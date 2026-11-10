@@ -64,7 +64,7 @@ model.compile(
 # --- START DATA LOADING
 import os, shutil, pathlib
 
-PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent
+PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
 
 # Directory where we will store our smaller dataset
 new_base_dir = (

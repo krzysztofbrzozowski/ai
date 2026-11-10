@@ -1,6 +1,6 @@
 # Binary classification
 ## Description
-04_binary_classification_imdb_recesion_good_or_bad.py -> model where inputs are the data in 0/1 representation
+deep_learning_with_p/04_binary_classification_imdb_recesion_good_or_bad.py -> model where inputs are the data in 0/1 representation
 ```python
 def multi_hot_encode(sequences, num_classes):
     # Example input:

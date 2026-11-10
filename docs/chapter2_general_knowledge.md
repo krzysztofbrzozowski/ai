@@ -214,7 +214,7 @@ grad(loss_val, b) = 1 * 1 = 1
 ## Functions relation chain
 ### Create model
 > Below you can find some sequence
-> Look at the comments in 01_manual_implementation_recognition_nerwork.py for more details
+> Look at the comments in deep_learning_with_p/02_manual_implementation_recognition_nerwork.py for more details
 ```python
     model = NaiveSequential(
         [

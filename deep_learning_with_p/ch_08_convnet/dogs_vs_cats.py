@@ -2,7 +2,7 @@ import os, shutil, pathlib
 
 # --- START SMALL DATASET CREATION
 # Path to the directory where the original dataset was uncompressed
-PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent
+PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
 
 original_dir = (
     PROJECT_DIR

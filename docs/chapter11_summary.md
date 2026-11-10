@@ -46,4 +46,4 @@ def get_model(img_size, num_classes):
 # Using a pretrained segmentation model
 Interesting stuff can be done using meta pretrained model -> see details in https://deeplearningwithpython.io/chapters/chapter11_image-segmentation/#using-a-pretrained-segmentation-model, for now it is skipped here
 
-only the basic fetch done in ch_11_image_segmentation/02_segment_anything_model.py
+only the basic fetch done in deep_learning_with_p/ch_11_image_segmentation/02_segment_anything_model.py

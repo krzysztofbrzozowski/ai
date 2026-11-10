@@ -1,7 +1,7 @@
 import pathlib
 
 # --- START LOADING DATASET
-PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent
+PROJECT_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
 input_dir = (
     PROJECT_DIR
     / "datasets"
