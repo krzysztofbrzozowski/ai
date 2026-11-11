@@ -75,24 +75,25 @@ ds = ds.map(lambda x: (x[:-1], x[1:]))
 ds = ds.batch(batch_size).prefetch(8)
 
 # ds.reduce(0, lambda c, _: c + 1)
-# Verify the amount of batches in ds
-# c = 0               # <- pierwszy argument reduce: stan początkowy (initial_state = 0)
-# for _ in ds:        # <- drugi argument: lambda c, _: c + 1
+# Verify the number of batches in ds:
+# c = 0               # <- first argument of reduce: initial_state = 0
+# for _ in ds:        # <- second argument: lambda c, _: c + 1
 #     c = c + 1
-# return c            # -> zwraca tf.Tensor z końcową liczbą elementów
-
-# W przypadku potoku z TextLineDataset -> interleave -> rebatch, TensorFlow nie wie z góry, ile linii tekstu i ile tokenów wyjdzie z 50 plików .txt na dysku:
-
-# len(ds) rzuci błąd TypeError: The dataset length is unknown,
-# ds.cardinality().numpy() zwróci -2 (UNKNOWN_CARDINALITY).
-
-# Dlatego ds.reduce(0, lambda c, _: c + 1) to sposób na wymuszenie przejścia przez cały potok danych od początku do końca i policzenie, ile dokładnie batchy z niego powstanie.
+# return c            # -> returns a tf.Tensor with the final element count
+#
+# For a pipeline built with TextLineDataset -> interleave -> rebatch, TensorFlow does not know
+# in advance how many lines of text or how many tokens will be produced from the 50 .txt files on disk:
+# - len(ds) raises TypeError: The dataset length is unknown,
+# - ds.cardinality().numpy() returns -2 (UNKNOWN_CARDINALITY).
+#
+# Therefore, ds.reduce(0, lambda c, _: c + 1) forces a full pass through the entire data pipeline
+# from start to finish in order to count the exact number of batches it produces.
 # ---
-# Kiedy wywołasz ds.reduce(0, lambda c, _: c + 1), zmuszasz komputer, żeby w tym momencie:
-# Wczytał z dysku wszystkie 3,8 GB tekstu,
-# Przemielił przez tokenizer na procesorze prawie miliard tokenów,
-# Pociął je na okna po 256 tokenów i ułożył w 58 746 batchy,
-# Po czym każdy batch wyrzucił do kosza, zwiększając tylko licznik c + 1.
+# When you call ds.reduce(0, lambda c, _: c + 1), the computer must immediately:
+# 1. Read all ~3.8 GB of text from disk,
+# 2. Tokenize nearly one billion tokens on the CPU,
+# 3. Slice them into 256-token windows and group them into 58,746 batches,
+# 4. Discard each batch while only incrementing the counter c + 1.
 
 # --- START TRAINING AND VALIDATION DATASET
 num_batches = 58746
@@ -102,11 +103,16 @@ val_ds = ds.take(num_val_batches).repeat()
 train_ds = ds.skip(num_val_batches).repeat()
 
 # --- START BUILDING THE MODEL
+import time
 from keras import layers
 
+@keras.saving.register_keras_serializable()
 class TransformerDecoder(keras.Layer):
-    def __init__(self, hidden_dim, intermediate_dim, num_heads):
-        super().__init__()
+    def __init__(self, hidden_dim, intermediate_dim, num_heads, **kwargs):
+        super().__init__(**kwargs)
+        self.hidden_dim = hidden_dim
+        self.intermediate_dim = intermediate_dim
+        self.num_heads = num_heads
         key_dim = hidden_dim // num_heads
         # Self-attention layers
         self.self_attention = layers.MultiHeadAttention(
@@ -135,11 +141,26 @@ class TransformerDecoder(keras.Layer):
         x = self.feed_forward_layernorm(x)
         return x
 
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {
+                "hidden_dim": self.hidden_dim,
+                "intermediate_dim": self.intermediate_dim,
+                "num_heads": self.num_heads,
+            }
+        )
+        return config
+
 from keras import ops
 
+@keras.saving.register_keras_serializable()
 class PositionalEmbedding(keras.Layer):
-    def __init__(self, sequence_length, input_dim, output_dim):
-        super().__init__()
+    def __init__(self, sequence_length, input_dim, output_dim, **kwargs):
+        super().__init__(**kwargs)
+        self.sequence_length = sequence_length
+        self.input_dim = input_dim
+        self.output_dim = output_dim
         self.token_embeddings = layers.Embedding(input_dim, output_dim)
         self.position_embeddings = layers.Embedding(sequence_length, output_dim)
 
@@ -151,6 +172,17 @@ class PositionalEmbedding(keras.Layer):
         embedded_tokens = self.token_embeddings(inputs)
         embedded_positions = self.position_embeddings(positions)
         return embedded_tokens + embedded_positions
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {
+                "sequence_length": self.sequence_length,
+                "input_dim": self.input_dim,
+                "output_dim": self.output_dim,
+            }
+        )
+        return config
 
 
 # --- START STACKING EVERYTING UP
@@ -200,37 +232,166 @@ mini_gpt = keras.Model(inputs, outputs)
 #
 #    During the first ~2000 steps, weights are updated very gently, giving
 #    LayerNormalization and Attention layers time to stabilize before full-speed training begins.
-# class WarmupSchedule(keras.optimizers.schedules.LearningRateSchedule):
+@keras.saving.register_keras_serializable()
 class WarmupSchedule(keras.optimizers.schedules.LearningRateSchedule):
-    def __init__(self):
+    def __init__(self, rate=2e-4, warmup_steps=1_000.0):
         # Peak learning rate
-        self.rate = 2e-4
-        self.warmup_steps = 1_000.0
+        self.rate = rate
+        self.warmup_steps = warmup_steps
 
     def __call__(self, step):
         step = ops.cast(step, dtype="float32")
         scale = ops.minimum(step / self.warmup_steps, 1.0)
         return self.rate * scale
 
+    def get_config(self):
+        return {
+            "rate": self.rate,
+            "warmup_steps": self.warmup_steps,
+        }
+
 schedule = WarmupSchedule()
+
 # --- START TRAINING
 num_epochs = 8
 # Set these to a lower value if you don't want to wait for training.
 steps_per_epoch = num_train_batches // num_epochs
 validation_steps = num_val_batches
 
+# Ensure Keras knows the exact step count for progress bar & ETA calculation
+# (same approach as in dots_ai.nosync/ml/training_pipeline.py):
+#   12/7280 ━━━━━━━━━━━━━━━━━━━━ X:XX:XX Xs/step
+print(
+    f"Dataset split: {num_train_batches:,} training batches "
+    f"({steps_per_epoch:,} steps/epoch x {num_epochs} epochs), "
+    f"{validation_steps:,} validation batches"
+)
+
+
+def _format_duration(seconds):
+    hours, rem = divmod(int(seconds), 3600)
+    minutes, secs = divmod(rem, 60)
+    return f"{hours:02d}h {minutes:02d}m {secs:02d}s"
+
+
+class TrainingTimeEstimator(keras.callbacks.Callback):
+    """Estimates and prints 1-epoch and total training duration."""
+
+    def __init__(self, steps_per_epoch, total_epochs, sample_steps=10):
+        super().__init__()
+        self.steps_per_epoch = steps_per_epoch
+        self.total_epochs = total_epochs
+        self.sample_steps = sample_steps
+        self.epoch_start_time = None
+        self.steady_start_time = None
+        self.estimate_printed = False
+
+    def on_epoch_begin(self, epoch, logs=None):
+        self.epoch_start_time = time.perf_counter()
+
+    def on_train_batch_end(self, batch, logs=None):
+        # Skip batch 0 (graph compilation) when estimating steady-state step time
+        if batch == 1 and not self.estimate_printed:
+            self.steady_start_time = time.perf_counter()
+        elif (
+            batch == self.sample_steps + 1
+            and not self.estimate_printed
+            and self.steady_start_time is not None
+        ):
+            elapsed = time.perf_counter() - self.steady_start_time
+            sec_per_step = elapsed / self.sample_steps
+            est_epoch_sec = sec_per_step * self.steps_per_epoch
+            est_total_sec = est_epoch_sec * self.total_epochs
+            print(
+                f"\n[Time Estimate] ~{sec_per_step:.2f}s/step | "
+                f"1 epoch ({self.steps_per_epoch:,} steps): ~{_format_duration(est_epoch_sec)} | "
+                f"Full training ({self.total_epochs} epochs): ~{_format_duration(est_total_sec)}"
+            )
+            self.estimate_printed = True
+
+    def on_epoch_end(self, epoch, logs=None):
+        epoch_sec = time.perf_counter() - self.epoch_start_time
+        remaining_epochs = self.total_epochs - (epoch + 1)
+        remaining_sec = epoch_sec * remaining_epochs
+        print(
+            f"\n[Epoch {epoch + 1}/{self.total_epochs}] "
+            f"Duration: {_format_duration(epoch_sec)} | "
+            f"Estimated remaining time: {_format_duration(remaining_sec)}"
+        )
+
+
+MODEL_PATH = (
+    PROJECT_DIR
+    / "models"
+    / "mini_gpt"
+    / "mini_gpt.keras"
+)
+MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+HISTORY_PLOT_PATH = (
+    PROJECT_DIR
+    / "docs"
+    / "imgs"
+    / "mini_gpt"
+    / "training_history.png"
+)
+HISTORY_PLOT_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+callbacks = [
+    keras.callbacks.ModelCheckpoint(
+        filepath=MODEL_PATH,
+        save_best_only=True,
+        monitor="val_loss",
+    ),
+    TrainingTimeEstimator(
+        steps_per_epoch=steps_per_epoch,
+        total_epochs=num_epochs,
+    ),
+]
+
 mini_gpt.compile(
     optimizer=keras.optimizers.Adam(schedule),
     loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
     metrics=["accuracy"],
 )
-mini_gpt.fit(
+history = mini_gpt.fit(
     train_ds,
     validation_data=val_ds,
     epochs=num_epochs,
     steps_per_epoch=steps_per_epoch,
     validation_steps=validation_steps,
+    callbacks=callbacks,
 )
+
+# --- START MODEL VERIFICATION (PLOTTING ACCURACY & LOSS)
+import matplotlib.pyplot as plt
+
+accuracy = history.history["accuracy"]
+val_accuracy = history.history["val_accuracy"]
+loss = history.history["loss"]
+val_loss = history.history["val_loss"]
+epochs = range(1, len(accuracy) + 1)
+
+figure, (acc_ax, loss_ax) = plt.subplots(1, 2, figsize=(12, 5))
+
+acc_ax.plot(epochs, accuracy, "r--", label="Training accuracy")
+acc_ax.plot(epochs, val_accuracy, "b", label="Validation accuracy")
+acc_ax.set_title("Training and validation accuracy")
+acc_ax.set_xlabel("Epoch")
+acc_ax.set_ylabel("Accuracy")
+acc_ax.legend()
+
+loss_ax.plot(epochs, loss, "r--", label="Training loss")
+loss_ax.plot(epochs, val_loss, "b", label="Validation loss")
+loss_ax.set_title("Training and validation loss")
+loss_ax.set_xlabel("Epoch")
+loss_ax.set_ylabel("Loss")
+loss_ax.legend()
+
+figure.tight_layout()
+figure.savefig(HISTORY_PLOT_PATH, dpi=300)
+plt.show()
+# --- END MODEL VERIFICATION
 
 if __name__ == "__main__":
     # Turn on debugging
