@@ -116,14 +116,20 @@ class TransformerDecoder(keras.Layer):
         key_dim = hidden_dim // num_heads
         # Self-attention layers
         self.self_attention = layers.MultiHeadAttention(
-            num_heads, key_dim, dropout=0.1
+            num_heads, key_dim, dropout=0.1, dtype=self.dtype_policy
         )
-        self.self_attention_layernorm = layers.LayerNormalization()
+        self.self_attention_layernorm = layers.LayerNormalization(
+            dtype=self.dtype_policy
+        )
         # Feedforward layers
-        self.feed_forward_1 = layers.Dense(intermediate_dim, activation="relu")
-        self.feed_forward_2 = layers.Dense(hidden_dim)
-        self.feed_forward_layernorm = layers.LayerNormalization()
-        self.dropout = layers.Dropout(0.1)
+        self.feed_forward_1 = layers.Dense(
+            intermediate_dim, activation="relu", dtype=self.dtype_policy
+        )
+        self.feed_forward_2 = layers.Dense(hidden_dim, dtype=self.dtype_policy)
+        self.feed_forward_layernorm = layers.LayerNormalization(
+            dtype=self.dtype_policy
+        )
+        self.dropout = layers.Dropout(0.1, dtype=self.dtype_policy)
 
     def call(self, inputs):
         # Self-attention computation
@@ -161,12 +167,18 @@ class PositionalEmbedding(keras.Layer):
         self.sequence_length = sequence_length
         self.input_dim = input_dim
         self.output_dim = output_dim
-        self.token_embeddings = layers.Embedding(input_dim, output_dim)
-        self.position_embeddings = layers.Embedding(sequence_length, output_dim)
+        self.token_embeddings = layers.Embedding(
+            input_dim, output_dim, dtype=self.dtype_policy
+        )
+        self.position_embeddings = layers.Embedding(
+            sequence_length, output_dim, dtype=self.dtype_policy
+        )
 
     def call(self, inputs, reverse=False):
         if reverse:
-            token_embeddings = self.token_embeddings.embeddings
+            token_embeddings = ops.cast(
+                self.token_embeddings.embeddings, inputs.dtype
+            )
             return ops.matmul(inputs, ops.transpose(token_embeddings))
         positions = ops.cumsum(ops.ones_like(inputs), axis=-1) - 1
         embedded_tokens = self.token_embeddings(inputs)
