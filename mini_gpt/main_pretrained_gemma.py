@@ -79,5 +79,22 @@ gemma_lm.compile(
 )
 gemma_lm.fit(train_ds, validation_data=val_ds, epochs=1)
 
+# --- START TEST
+# >>> gemma_lm.generate(
+# ...     "[instruction]\nHello from the mountain[end]\n"
+# ...     "[response]\n",
+# ...     max_length=512,
+# ... )
+# >>> gemma_lm.generate(
+# ...     "[instruction]\nWhat is going on?[end]\n"
+# ...     "[response]\n",
+# ...     max_length=512,
+# ... )
+# >>> gemma_lm.generate(
+# ...     "[instruction]\nWho are you?[end]\n"
+# ...     "[response]\n",
+# ...     max_length=512,
+# ... )
+
 if __name__ == "__main__":
     pass
